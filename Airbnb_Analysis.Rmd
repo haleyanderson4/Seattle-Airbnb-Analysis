@@ -101,3 +101,8 @@ std_dev_reviews <- sd(listings_clean$number_of_reviews, na.rm = TRUE)
 std_dev_ratings <- sd(listings_clean$review_scores_rating, na.rm = TRUE)
 cat("Number Reviews Standard Deviation: ", std_dev_reviews, " ||  Rating Standard Deviation: ", std_dev_ratings)
 ```
+
+## Plots
+```{r}
+
+```
