@@ -104,5 +104,16 @@ cat("Number Reviews Standard Deviation: ", std_dev_reviews, " ||  Rating Standar
 
 ## Plots
 ```{r}
-
+# Gold is Apartment, Blue is House. First 2 are Entire Home, middle 2 are private room, final 2 are shared room
+boxplot(price_int ~ property_type + room_type, 
+        data = listings_clean %>% filter(price_int < 600 & (property_type=="House" | property_type=="Apartment")), 
+        notch=TRUE,
+        col=(c("gold","blue")),
+        names=c("A & EH", "H & EH", "A & PR",
+                "H & PR", "A & SR", "H & SR"),
+        at = c(1,2, 4,5, 7,8),
+        main="Nightly Price of Airbnbs in Seattle", 
+        ylab="Nightly Price",
+        xlab="A - Apartment, H - House, EH - Entire House, PR - Private Room, SR - Shared Room"
+        )
 ```
