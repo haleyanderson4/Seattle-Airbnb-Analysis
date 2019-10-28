@@ -1,3 +1,2 @@
-# FinalDatabase
-# AA-Assignment-1
 # Seattle-Airbnb-Analysis
+Contributors: Haley Anderson, Allison Merrill, Annie Zhu, Karolina Michalewska
