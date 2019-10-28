@@ -32,27 +32,22 @@ opts_chunk$set(message = FALSE,
 ```{r}
 library('tidyverse')
 listings <- read_csv("seattle/listings.csv")
-                                         
+
 # Remove listinings not in Seattle, WA
-listings <- listings %>% filter(city=="Seattle",
+listings_clean <- listings_clean %>% filter(city=="Seattle",
                                             state=="WA")
-                                            
-# Remove unnecessary variables
-listings_clean <- listings[,c(1,5,9,17,19,20,23,24,
-                              25,26,29,30,31,32,33,
-                              34,35,36,37,39,40,41,
-                              49,50,51,52:85,87:92)]
-# add select code here
+
+# Data cleaning, removing unecessary variables 
+# add select statement here
 
 # Add factors
-city_levels = unique(listings_clean$city)
-listings_clean <- listings_clean %>% mutate(
-  factor_city = factor(listings_clean$city, labels = city_levels)
-)
+# add factor levels here
 ```
 
 ## Summary Statistics
 ```{r}
+# Predicting the nightly price of an Airbnb listing
+
 num_listing <- nrow(listings_clean)
 cat("Number of Listings in Seattle: ", num_listing)
 
@@ -85,6 +80,9 @@ avg_nightly_price <- mean(x=prices, na.rm = TRUE)
 median_nightly_price <- median(x=prices, na.rm = TRUE)
 cat("Average Nightly Price: ", avg_nightly_price, " ||  Median Nightly Price: ", median_nightly_price)
 
+std_dev_nightly_price <- sd(prices, na.rm = TRUE)
+cat("Standard Deviation: ", std_dev_nightly_price)
+
 max_nightly_price <- max(prices, na.rm = TRUE)
 min_nightly_price <- min(prices, na.rm = TRUE)
 cat("Minimum Nightly Price: ", min_nightly_price, " ||  Maximum Nightly Price: ", max_nightly_price)
@@ -92,4 +90,8 @@ cat("Minimum Nightly Price: ", min_nightly_price, " ||  Maximum Nightly Price: "
 avg_num_reviews <- mean(listings_clean$number_of_reviews, na.rm = TRUE)
 avg_rating <- mean(listings_clean$review_scores_rating, na.rm = TRUE)
 cat("Average number of Reviews: ", avg_num_reviews, " ||  Average Rating out of 100: ", avg_rating)
+
+std_dev_reviews <- sd(listings_clean$number_of_reviews, na.rm = TRUE)
+std_dev_ratings <- sd(listings_clean$review_scores_rating, na.rm = TRUE)
+cat("Number Reviews Standard Deviation: ", std_dev_reviews, " ||  Rating Standard Deviation: ", std_dev_ratings)
 ```
