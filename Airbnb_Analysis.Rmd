@@ -34,15 +34,18 @@ library('tidyverse')
 listings <- read_csv("seattle/listings.csv")
 
 # Remove listinings not in Seattle, WA
-listings_clean <- listings_clean %>% filter(city=="Seattle",
-                                            state=="WA")
+listings <- listings %>% filter(city=="Seattle",
+                                state=="WA")
 
 # Data cleaning, removing unecessary variables 
 listings_clean <- listings[,c(1,5,9,17,19,20,23,24,
                               25,26,29,30,31,32,33,
                               34,35,36,37,39,40,41,
                               49,50,51,52:85,87:92)]
-# add select statement here
+
+listings_clean <- listings_clean %>% mutate(
+  price_int = as.numeric(gsub("\\$", "", as.character(listings_clean$price)))
+  )
 
 # Add factors
 # add factor levels here
@@ -79,16 +82,15 @@ cat("Percentage of Listings that are a Shared Room: ", share_room_percent)
 
 print(full_house_percent + priv_room_percent + share_room_percent)
 
-prices <- as.numeric(gsub("\\$", "", as.character(listings_clean$price)))
-avg_nightly_price <- mean(x=prices, na.rm = TRUE)
-median_nightly_price <- median(x=prices, na.rm = TRUE)
+avg_nightly_price <- mean(listings_clean$price_int, na.rm = TRUE)
+median_nightly_price <- median(listings_clean$price_int, na.rm = TRUE)
 cat("Average Nightly Price: ", avg_nightly_price, " ||  Median Nightly Price: ", median_nightly_price)
 
-std_dev_nightly_price <- sd(prices, na.rm = TRUE)
+std_dev_nightly_price <- sd(listings_clean$price_int, na.rm = TRUE)
 cat("Standard Deviation: ", std_dev_nightly_price)
 
-max_nightly_price <- max(prices, na.rm = TRUE)
-min_nightly_price <- min(prices, na.rm = TRUE)
+max_nightly_price <- max(listings_clean$price_int, na.rm = TRUE)
+min_nightly_price <- min(listings_clean$price_int, na.rm = TRUE)
 cat("Minimum Nightly Price: ", min_nightly_price, " ||  Maximum Nightly Price: ", max_nightly_price)
 
 avg_num_reviews <- mean(listings_clean$number_of_reviews, na.rm = TRUE)
