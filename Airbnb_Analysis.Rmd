@@ -42,6 +42,8 @@ listings_clean <- listings[,c(1,5,9,17,19,20,23,24,
                               25,26,29,30,31,32,33,
                               34,35,36,37,39,40,41,
                               49,50,51,52:85,87:92)]
+                              
+listings_clean <- listings_clean[,c(1:40,46,48:57,60:61,63:65)]
 
 listings_clean <- listings_clean %>% mutate(
   price_int = as.numeric(gsub("\\$", "", as.character(listings_clean$price)))
@@ -116,4 +118,18 @@ boxplot(price_int ~ property_type + room_type,
         ylab="Nightly Price",
         xlab="A - Apartment, H - House, EH - Entire House, PR - Private Room, SR - Shared Room"
         )
+```
+
+## Models
+```{r}
+# Model number one is a lasso model which will help us determine which variables are the most important
+library(glmnet)
+library(glmnetUtils)
+
+cv.glmnet(price ~ ,
+          data = listings_clean,
+          alpha = 1,
+          nfolds = 10) 
+
+# This model is a word graph showing the most commonly used words in listing names
 ```
