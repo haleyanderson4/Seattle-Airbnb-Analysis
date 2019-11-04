@@ -36,6 +36,10 @@ listings <- read_csv("seattle/listings.csv")
 # Remove listinings not in Seattle, WA
 listings <- listings %>% filter(city=="Seattle",
                                 state=="WA")
+                                
+# Remove listings that have never been stayed at
+listings <- listings %>% drop_na(host_acceptance_rate)
+listings <- listings %>% filter(host_acceptance_rate!="N/A")
 
 # Data cleaning, removing unecessary variables 
 listings_clean <- listings[,c(1,5,9,17,19,20,23,24,
