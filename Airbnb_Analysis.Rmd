@@ -26,6 +26,14 @@ opts_chunk$set(message = FALSE,
                fig.width = 5,  
                fig.height = 4,
                fig.align='center')
+               
+# install packages
+install.packages('wordcloud2')
+install.packages('slam')
+install.packages("tm")  # for text mining
+install.packages("SnowballC") # for text stemming
+install.packages("wordcloud") # word-cloud generator 
+install.packages("RColorBrewer") # color palettes
 ```
 
 ## Data Cleaning
@@ -146,16 +154,69 @@ boxplot(price_int ~ property_type + room_type,
         )
 ```
 
-## Models
+## Model 1: Lasso Model
 ```{r}
 # Model number one is a lasso model which will help us determine which variables are the most important
 library(glmnet)
 library(glmnetUtils)
 
-cv.glmnet(price ~ ,
-          data = listings_clean,
-          alpha = 1,
-          nfolds = 10) 
+lasso_mod <- cv.glmnet(price_int ~ host_response_time + host_is_superhost + host_total_listings_count +
+                         host_has_profile_pic + neighbourhood + neighbourhood_cleansed + 
+                         property_type + room_type + accommodates + bedrooms + beds + 
+                         cancellation_policy + reviews_per_month,
+                       data = listings_clean,
+                       alpha = 1,
+                       nfolds = 10) 
+summary(lasso_mod)
+plot(lasso_mod)
 
+library('coefplot')
+coef(lasso_mod, s = "lambda.min")
+coef(lasso_mod, s = "lambda.1se")
+```
+
+## Model 2: Word Cloud
+```{r}
 # This model is a word graph showing the most commonly used words in listing names
+# This method was inspired by http://www.sthda.com/english/wiki/text-mining-and-word-cloud-fundamentals-in-r-5-simple-steps-you-should-know
+library("tm")
+library("SnowballC")
+library("wordcloud")
+library("RColorBrewer")
+library('wordcloud2')
+wordcloud2(data=listings_clean$name, size=1.6)
+
+docs <- Corpus(VectorSource(listings_clean$name))
+toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+docs <- tm_map(docs, toSpace, "/")
+docs <- tm_map(docs, toSpace, "@")
+docs <- tm_map(docs, toSpace, "\\|")
+
+# Convert the text to lower case
+docs <- tm_map(docs, content_transformer(tolower))
+# Remove numbers
+docs <- tm_map(docs, removeNumbers)
+# Remove english common stopwords
+docs <- tm_map(docs, removeWords, stopwords("english"))
+# Remove your own stop word
+# specify your stopwords as a character vector
+docs <- tm_map(docs, removeWords, c("blabla1", "blabla2")) 
+# Remove punctuations
+docs <- tm_map(docs, removePunctuation)
+# Eliminate extra white spaces
+docs <- tm_map(docs, stripWhitespace)
+
+dtm <- TermDocumentMatrix(docs)
+m <- as.matrix(dtm)
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+head(d, 10)
+
+wordcloud(words = d$word, freq = d$freq, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+
+barplot(d[1:10,]$freq, las = 2, names.arg = d[1:10,]$word,
+        col ="lightblue", main ="Most frequent words",
+        ylab = "Word frequencies")
 ```
