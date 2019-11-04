@@ -47,13 +47,33 @@ listings_clean <- listings[,c(1,5,9,17,19,20,23,24,
                               34,35,36,37,39,40,41,
                               49,50,51,52:85,87:92)]
                               
-listings_clean <- listings_clean[,c(1:2,4:40,46,48:57,60:61,63:65)]
+listings_clean <- listings_clean[,c(1:40,46,48:57,60:61,63:65)]
 
 listings_clean <- listings_clean %>% mutate(
   price_int = as.numeric(gsub("\\$", "", as.character(listings_clean$price)))
   )
 
 # Add factors
+df1 <- data.frame(listings$neighbourhood_cleansed)
+nieghborhood_cleansed_levels <- unique(df1)
+nieghborhood_cleansed_factors <- factor(listings$nieghborhood_cleansed, levels = nieghborhood_cleansed_levels)
+
+df2 <- data.frame(listings$neighbourhood)
+nieghborhood_levels <- unique(df2)
+nieghborhood_factors <- factor(listings$nieghborhood, levels = nieghborhood_levels)
+
+df3 <- data.frame(listings$zipcode)
+zipcode_levels <- unique(df3)
+zipcode_factors <- factor(listings$zipcode, levels = zipcode_levels)
+
+df4 <- data.frame(listings$property_type)
+property_type_levels <- unique(df4)
+property_type_levels
+property_type_factor <- factor(listings$property_type, levels = property_type_levels)
+
+df5 <- data.frame(listings$room_type)
+room_type_levels <- unique(df5)
+room_type_factors <- factor(listings$room_type, levels = room_type_levels)
 # add factor levels here
 ```
 
