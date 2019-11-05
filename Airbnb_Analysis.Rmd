@@ -154,28 +154,16 @@ boxplot(price_int ~ property_type + room_type,
         )
 ```
 
-## Model 1: Lasso Model
+## Train / Test Split
 ```{r}
-# Model number one is a lasso model which will help us determine which variables are the most important
-library(glmnet)
-library(glmnetUtils)
+train_idx <- sample(1:nrow(listings_clean),
+                    size = .75 * nrow(listings_clean))
 
-lasso_mod <- cv.glmnet(price_int ~ host_response_time + host_is_superhost + host_total_listings_count +
-                         host_has_profile_pic + neighbourhood + neighbourhood_cleansed + 
-                         property_type + room_type + accommodates + bedrooms + beds + 
-                         cancellation_policy + reviews_per_month,
-                       data = listings_clean,
-                       alpha = 1,
-                       nfolds = 10) 
-summary(lasso_mod)
-plot(lasso_mod)
-
-library('coefplot')
-coef(lasso_mod, s = "lambda.min")
-coef(lasso_mod, s = "lambda.1se")
+listings_train <- listings_clean %>% slice(train_idx)
+listings_test <- listings_clean %>% slice(-train_idx)
 ```
 
-## Model 2: Word Cloud
+## Model 1: Word Cloud
 ```{r}
 # This model is a word graph showing the most commonly used words in listing names
 # This method was inspired by http://www.sthda.com/english/wiki/text-mining-and-word-cloud-fundamentals-in-r-5-simple-steps-you-should-know
@@ -220,3 +208,30 @@ barplot(d[1:10,]$freq, las = 2, names.arg = d[1:10,]$word,
         col ="lightblue", main ="Most frequent words",
         ylab = "Word frequencies")
 ```
+
+## Model 2: Lasso Model
+```{r}
+# Model number one is a lasso model which will help us determine which variables are the most important
+library(glmnet)
+library(glmnetUtils)
+
+lasso_mod <- cv.glmnet(price_int ~ host_response_time + host_is_superhost + host_total_listings_count +
+                         host_has_profile_pic + neighbourhood + neighbourhood_cleansed + 
+                         property_type + room_type + accommodates + bedrooms + beds + 
+                         cancellation_policy + reviews_per_month,
+                       data = listings_train,
+                       alpha = 1,
+                       nfolds = 10) 
+summary(lasso_mod)
+plot(lasso_mod)
+
+library('coefplot')
+coef(lasso_mod, s = "lambda.min")
+coef(lasso_mod, s = "lambda.1se")
+```
+
+## Model 3: Random Forest
+```{r}
+
+```
+
