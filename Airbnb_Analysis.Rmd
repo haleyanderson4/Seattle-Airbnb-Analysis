@@ -26,7 +26,7 @@ opts_chunk$set(message = FALSE,
                fig.width = 5,  
                fig.height = 4,
                fig.align='center')
-               
+
 # install packages
 install.packages('wordcloud2')
 install.packages('slam')
@@ -34,6 +34,9 @@ install.packages("tm")  # for text mining
 install.packages("SnowballC") # for text stemming
 install.packages("wordcloud") # word-cloud generator 
 install.packages("RColorBrewer") # color palettes
+install.packages('randomForest')
+install.packages('ranger')
+install.packages('randomForestExplainer')
 ```
 
 ## Data Cleaning
@@ -41,10 +44,10 @@ install.packages("RColorBrewer") # color palettes
 library('tidyverse')
 listings <- read_csv("seattle/listings.csv")
 
-# Remove listinings not in Seattle, WA
+# Remove listings not in Seattle, WA
 listings <- listings %>% filter(city=="Seattle",
                                 state=="WA")
-                                
+
 # Remove listings that have never been stayed at
 listings <- listings %>% drop_na(host_acceptance_rate)
 listings <- listings %>% filter(host_acceptance_rate!="N/A")
@@ -54,37 +57,54 @@ listings_clean <- listings[,c(1,5,9,17,19,20,23,24,
                               25,26,29,30,31,32,33,
                               34,35,36,37,39,40,41,
                               49,50,51,52:85,87:92)]
-                              
-listings_clean <- listings_clean %>% filter(id != "9448215")                            
-                              
-listings_clean <- listings_clean[,c(1:40,46,48:57,60:61,63:65)]
+
+# Remove listing that has an junk 7 digit zipcode
+listings_clean <- listings_clean %>% filter(id != "9448215")  
+
+listings_clean <- listings_clean[,c(1:2,4:40,46,48:57,60:61,63:65)]
+
+# Percentage of NA values
+mean(is.na(listings_clean))
 
 listings_clean <- listings_clean %>% mutate(
   price_int = as.numeric(gsub("\\$", "", as.character(listings_clean$price)))
-  )
+)
 
 # Add factors
-df1 <- data.frame(listings$neighbourhood_cleansed)
-nieghborhood_cleansed_levels <- unique(df1)
-nieghborhood_cleansed_factors <- factor(listings$nieghborhood_cleansed, levels = nieghborhood_cleansed_levels)
+df1 <- data.frame(listings_clean$neighbourhood_cleansed)
+neighbourhood_cleansed_levels <- unique(df1)
+neighbourhood_cleansed_levels <- neighbourhood_cleansed_levels %>% select()
+neighbourhood_cleansed_levels <- factor(listings_clean$neighbourhood_cleansed, levels = neighbourhood_cleansed_levels)
 
-df2 <- data.frame(listings$neighbourhood)
-nieghborhood_levels <- unique(df2)
-nieghborhood_factors <- factor(listings$nieghborhood, levels = nieghborhood_levels)
+df2 <- data.frame(listings_clean$neighbourhood)
+neighbourhood_levels <- unique(df2)
+neighbourhood_levels <- factor(listings_clean$neighbourhood, levels = neighbourhood_levels)
 
-df3 <- data.frame(listings$zipcode)
+df3 <- data.frame(listings_clean$zipcode)
 zipcode_levels <- unique(df3)
-zipcode_factors <- factor(listings$zipcode, levels = zipcode_levels)
+zipcode_factors <- factor(listings_clean$zipcode, levels = zipcode_levels)
 
-df4 <- data.frame(listings$property_type)
+df4 <- data.frame(listings_clean$property_type)
 property_type_levels <- unique(df4)
 property_type_levels
-property_type_factor <- factor(listings$property_type, levels = property_type_levels)
+property_type_factor <- factor(listings_clean$property_type, levels = property_type_levels)
 
-df5 <- data.frame(listings$room_type)
+df5 <- data.frame(listings_clean$room_type)
 room_type_levels <- unique(df5)
-room_type_factors <- factor(listings$room_type, levels = room_type_levels)
-# add factor levels here
+room_type_factors <- factor(listings_clean$room_type, levels = room_type_levels)
+
+df6 <- data.frame(listings_clean$bed_type)
+bed_type_levels <- unique(df6)
+bed_type_factors <- factor(listings_clean$bed_type, levels = bed_type_levels)
+
+# Add factors to data frame
+listings_clean <- listings_clean %>% mutate(
+  neighbourhood_cleansed_factor = factor(listings_clean$neighbourhood_cleansed, levels = neighbourhood_cleansed_levels),
+  zipcode_factor <- factor(listings_clean$neighbourhood, levels = neighbourhood_levels),
+  property_type_factor <- factor(listings_clean$property_type, levels = property_type_levels),
+  room_type_factor <- factor(listings_clean$room_type, levels = room_type_levels),
+  bed_type_factor <- factor(listings_clean$bed_type, levels = bed_type_levels)
+)
 ```
 
 ## Summary Statistics
@@ -159,6 +179,8 @@ boxplot(price_int ~ property_type + room_type,
 train_idx <- sample(1:nrow(listings_clean),
                     size = .75 * nrow(listings_clean))
 
+list_short <- listings_clean %>% filter(-c("square_feet", "weekly_price", "monthly_price"))
+
 listings_train <- listings_clean %>% slice(train_idx)
 listings_test <- listings_clean %>% slice(-train_idx)
 ```
@@ -232,6 +254,44 @@ coef(lasso_mod, s = "lambda.1se")
 
 ## Model 3: Random Forest
 ```{r}
+library('randomForest')
+library('ranger')
 
+rf_mods <- list()
+oob_err <- NULL
+
+for(i in 1:9) {
+  #fit RF model and vary mtry everytime
+  rf_mod <- randomForest(chd ~.,
+                         data = SA_train,
+                         type = classification,
+                         mtry = i,
+                         ntree = 1000)
+  rf_mods[[i]] <- rf_mod
+  oob_err[i] <- rf_mod$err.rate[1000]
+}
+
+results_DF <- data.frame(
+  mtry = 1:9,
+  oob_err
+)
+
+ggplot(results_DF, aes(x= mtry, y = oob_err)) + geom_point()
+
+mtry_optimal <- oob_err[] # add best
+
+rt_fit <- randomForest(price_int ~ .,
+                       data = listings_train,
+                       na.action = na.omit,
+                       mtry = mtry_optimal,
+                       ntree = 10000,
+                       importance = TRUE,
+                       localImp = TRUE) 
+
+plot(rt_fit, ylim = c(0,1))
+
+library('randomForestExplainer')
+explain_forest(rt_fit,
+               interactions = TRUE, 
+               data = listings_train)
 ```
-
