@@ -160,6 +160,23 @@ cat("Number Reviews Standard Deviation: ", std_dev_reviews, " ||  Rating Standar
 
 ## Plots
 ```{r}
+library(ggplot2)
+
+# scatter plot of accommodates by price 
+ggplot(listings_clean) + aes(x = accommodates , y = price, color = property_type) + geom_point() + 
+  theme( axis.text.y = element_blank()) + ylab("price, max = $1000")
+ 
+# room type and accommodates
+ggplot(listings_clean) + aes(x = room_type, y = accommodates) + geom_point()
+
+# Correlation matrix
+cormat <- cor(listings_clean %>% select_if(is.numeric) %>% drop_na())
+corrplot::corrplot(cormat)
+
+# neighborhood bar chart
+library(ggplot2)
+ggplot(data = listings_clean, aes(x = neighbourhood_cleansed)) + geom_bar(fill = "blue") + coord_flip()
+
 # Gold is Apartment, Blue is House. First 2 are Entire Home, middle 2 are private room, final 2 are shared room
 boxplot(price_int ~ property_type + room_type, 
         data = listings_clean %>% filter(price_int < 600 & (property_type=="House" | property_type=="Apartment")), 
