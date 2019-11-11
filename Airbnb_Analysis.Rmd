@@ -195,16 +195,7 @@ boxplot(price_int ~ property_type + room_type,
    ggtitle("The Proportion of Room Type in Each Area")
 ```
 
-## Train / Test Split
-```{r}
-train_idx <- sample(1:nrow(listings_clean),
-                    size = .75 * nrow(listings_clean))
-
-listings_train <- listings_clean %>% slice(train_idx)
-listings_test <- listings_clean %>% slice(-train_idx)
-```
-
-## Model 1: Word Cloud
+## Plot: Word Cloud
 ```{r}
 # This model is a word graph showing the most commonly used words in listing names
 # This method was inspired by http://www.sthda.com/english/wiki/text-mining-and-word-cloud-fundamentals-in-r-5-simple-steps-you-should-know
@@ -249,7 +240,16 @@ barplot(d[1:10,]$freq, las = 2, names.arg = d[1:10,]$word,
         ylab = "Word frequencies")
 ```
 
-## Model 2: Lasso Model
+## Train / Test Split
+```{r}
+train_idx <- sample(1:nrow(listings_clean),
+                    size = .75 * nrow(listings_clean))
+
+listings_train <- listings_clean %>% slice(train_idx)
+listings_test <- listings_clean %>% slice(-train_idx)
+```
+
+## Model 1: Lasso Model
 ```{r}
 # Model number one is a lasso model which will help us determine which variables are the most important
 library(glmnet)
@@ -270,7 +270,7 @@ coef(lasso_mod, s = "lambda.min")
 coef(lasso_mod, s = "lambda.1se")
 ```
 
-## Model 3: Random Forest
+## Model 2: Random Forest
 ```{r}
 library('randomForest')
 library('ranger')
