@@ -67,7 +67,10 @@ listings_clean <- listings_clean[,c(1:2,4:32,35:40,46,48:57,60:61,63:65)]
 mean(is.na(listings_clean))
 
 listings_clean <- listings_clean %>% mutate(
-  price_int = as.numeric(gsub("\\$", "", as.character(listings_clean$price)))
+  price = as.numeric(gsub("\\$", "", as.character(listings_clean$price))),
+  security_deposit = as.numeric(gsub("\\$", "", as.character(listings_clean$security_deposit))),
+  cleaning_fee = as.numeric(gsub("\\$", "", as.character(listings_clean$cleaning_fee))),
+  extra_people = as.numeric(gsub("\\$", "", as.character(listings_clean$extra_people))),
 )
 
 # Add factors
@@ -138,15 +141,15 @@ cat("Percentage of Listings that are a Shared Room: ", share_room_percent)
 
 print(full_house_percent + priv_room_percent + share_room_percent)
 
-avg_nightly_price <- mean(listings_clean$price_int, na.rm = TRUE)
-median_nightly_price <- median(listings_clean$price_int, na.rm = TRUE)
+avg_nightly_price <- mean(listings_clean$price, na.rm = TRUE)
+median_nightly_price <- median(listings_clean$price, na.rm = TRUE)
 cat("Average Nightly Price: ", avg_nightly_price, " ||  Median Nightly Price: ", median_nightly_price)
 
-std_dev_nightly_price <- sd(listings_clean$price_int, na.rm = TRUE)
+std_dev_nightly_price <- sd(listings_clean$price, na.rm = TRUE)
 cat("Standard Deviation: ", std_dev_nightly_price)
 
-max_nightly_price <- max(listings_clean$price_int, na.rm = TRUE)
-min_nightly_price <- min(listings_clean$price_int, na.rm = TRUE)
+max_nightly_price <- max(listings_clean$price, na.rm = TRUE)
+min_nightly_price <- min(listings_clean$price, na.rm = TRUE)
 cat("Minimum Nightly Price: ", min_nightly_price, " ||  Maximum Nightly Price: ", max_nightly_price)
 
 avg_num_reviews <- mean(listings_clean$number_of_reviews, na.rm = TRUE)
@@ -177,8 +180,8 @@ corrplot::corrplot(cormat)
 ggplot(data = listings_clean, aes(x = neighbourhood_cleansed)) + geom_bar(fill = "blue") + coord_flip()
 
 # Gold is Apartment, Blue is House. First 2 are Entire Home, middle 2 are private room, final 2 are shared room
-boxplot(price_int ~ property_type + room_type, 
-        data = listings_clean %>% filter(price_int < 600 & (property_type=="House" | property_type=="Apartment")), 
+boxplot(price ~ property_type + room_type, 
+        data = listings_clean %>% filter(price < 600 & (property_type=="House" | property_type=="Apartment")), 
         notch=TRUE,
         col=(c("gold","blue")),
         names=c("A & EH", "H & EH", "A & PR",
@@ -255,10 +258,10 @@ listings_test <- listings_clean %>% slice(-train_idx)
 library(glmnet)
 library(glmnetUtils)
 
-lasso_mod <- cv.glmnet(price_int ~ host_response_time + host_is_superhost + host_total_listings_count +
-                         host_has_profile_pic + neighbourhood + neighbourhood_cleansed + 
-                         property_type + room_type + accommodates + bedrooms + beds + 
-                         cancellation_policy + reviews_per_month,
+lasso_mod <- cv.glmnet(price ~ host_listings_count + host_has_profile_pic + host_is_superhost + 
+                           neighbourhood_cleansed + property_type + room_type + minimum_nights +
+                           accommodates + bathrooms + bedrooms + beds + square_feet + number_of_reviews + 
+                           review_scores_rating + cancellation_policy,
                        data = listings_train,
                        alpha = 1,
                        nfolds = 10) 
@@ -278,11 +281,13 @@ library('ranger')
 rf_mods <- list()
 oob_err <- NULL
 
-for(i in 1:9) {
+for(i in 1:100) {
   #fit RF model and vary mtry everytime
-  rf_mod <- randomForest(chd ~.,
-                         data = SA_train,
-                         type = classification,
+  rf_mod <- randomForest(price ~ host_listings_count + host_has_profile_pic + host_is_superhost + 
+                           neighbourhood_cleansed + property_type + room_type + minimum_nights +
+                           accommodates + bathrooms + bedrooms + beds + square_feet + number_of_reviews + 
+                           review_scores_rating + cancellation_policy,
+                         data = listings_train,
                          mtry = i,
                          ntree = 1000)
   rf_mods[[i]] <- rf_mod
@@ -298,7 +303,7 @@ ggplot(results_DF, aes(x= mtry, y = oob_err)) + geom_point()
 
 mtry_optimal <- oob_err[] # add best
 
-rt_fit <- randomForest(price_int ~ .,
+rt_fit <- randomForest(price ~ .,
                        data = listings_train,
                        na.action = na.omit,
                        mtry = mtry_optimal,
