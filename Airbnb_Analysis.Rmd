@@ -172,6 +172,11 @@ boxplot(price_int ~ property_type + room_type,
         ylab="Nightly Price",
         xlab="A - Apartment, H - House, EH - Entire House, PR - Private Room, SR - Shared Room"
         )
+        
+# Proportion of Room Type In Each Zipcode
+ggplot(listings_clean) + geom_histogram(aes(zipcode, fill = room_type), stat = "count",alpha = 0.85, position = 'fill') + 
+  theme_minimal(base_size=13) + xlab("") + ylab("")  + 
+  ggtitle("The Proportion of Room Type in Each Area")
 ```
 
 ## Train / Test Split
