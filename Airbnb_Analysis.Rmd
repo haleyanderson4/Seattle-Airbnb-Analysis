@@ -61,7 +61,7 @@ listings_clean <- listings[,c(1,5,9,17,19,20,23,24,
 # Remove listing that has an junk 7 digit zipcode
 listings_clean <- listings_clean %>% filter(id != "9448215")  
 
-listings_clean <- listings_clean[,c(1:2,4:40,46,48:57,60:61,63:65)]
+listings_clean <- listings_clean[,c(1:2,4:32,35:40,46,48:57,60:61,63:65)]
 
 # Percentage of NA values
 mean(is.na(listings_clean))
@@ -174,7 +174,6 @@ cormat <- cor(listings_clean %>% select_if(is.numeric) %>% drop_na())
 corrplot::corrplot(cormat)
 
 # neighborhood bar chart
-library(ggplot2)
 ggplot(data = listings_clean, aes(x = neighbourhood_cleansed)) + geom_bar(fill = "blue") + coord_flip()
 
 # Gold is Apartment, Blue is House. First 2 are Entire Home, middle 2 are private room, final 2 are shared room
@@ -189,19 +188,17 @@ boxplot(price_int ~ property_type + room_type,
         ylab="Nightly Price",
         xlab="A - Apartment, H - House, EH - Entire House, PR - Private Room, SR - Shared Room"
         )
-        
+
 # Proportion of Room Type In Each Zipcode
-ggplot(listings_clean) + geom_histogram(aes(zipcode, fill = room_type), stat = "count",alpha = 0.85, position = 'fill') + 
-  theme_minimal(base_size=13) + xlab("") + ylab("")  + 
-  ggtitle("The Proportion of Room Type in Each Area")
+ ggplot(listings_clean) + geom_histogram(aes(zipcode, fill = room_type), stat = "count",alpha = 0.85, position = 'fill') + 
+   theme_minimal(base_size=13) + xlab("") + ylab("")  + 
+   ggtitle("The Proportion of Room Type in Each Area")
 ```
 
 ## Train / Test Split
 ```{r}
 train_idx <- sample(1:nrow(listings_clean),
                     size = .75 * nrow(listings_clean))
-
-list_short <- listings_clean %>% filter(-c("square_feet", "weekly_price", "monthly_price"))
 
 listings_train <- listings_clean %>% slice(train_idx)
 listings_test <- listings_clean %>% slice(-train_idx)
@@ -216,7 +213,6 @@ library("SnowballC")
 library("wordcloud")
 library("RColorBrewer")
 library('wordcloud2')
-wordcloud2(data=listings_clean$name, size=1.6)
 
 docs <- Corpus(VectorSource(listings_clean$name))
 toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
