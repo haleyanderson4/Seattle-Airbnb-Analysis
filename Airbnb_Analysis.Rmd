@@ -37,6 +37,7 @@ install.packages("RColorBrewer") # color palettes
 install.packages('randomForest')
 install.packages('ranger')
 install.packages('randomForestExplainer')
+install.packages('stargazer')
 ```
 
 ## Data Cleaning
@@ -74,6 +75,7 @@ listings_clean <- listings_clean %>% mutate(
 )
 
 # Add factors
+library('forcats')
 df1 <- data.frame(listings_clean$neighbourhood_cleansed)
 neighbourhood_cleansed_levels <- unique(df1)
 neighbourhood_cleansed_levels <- neighbourhood_cleansed_levels %>% select()
@@ -159,6 +161,10 @@ cat("Average number of Reviews: ", avg_num_reviews, " ||  Average Rating out of 
 std_dev_reviews <- sd(listings_clean$number_of_reviews, na.rm = TRUE)
 std_dev_ratings <- sd(listings_clean$review_scores_rating, na.rm = TRUE)
 cat("Number Reviews Standard Deviation: ", std_dev_reviews, " ||  Rating Standard Deviation: ", std_dev_ratings)
+
+library('stargazer')
+stargazer(listings_clean, out = "summary_stats.html")
+# Screen shot result and add image to doc
 ```
 
 ## Plots
@@ -281,7 +287,7 @@ library('ranger')
 rf_mods <- list()
 oob_err <- NULL
 
-for(i in 1:100) {
+for(i in 1:15) {
   #fit RF model and vary mtry everytime
   rf_mod <- randomForest(price ~ host_listings_count + host_has_profile_pic + host_is_superhost + 
                            neighbourhood_cleansed + property_type + room_type + minimum_nights +
