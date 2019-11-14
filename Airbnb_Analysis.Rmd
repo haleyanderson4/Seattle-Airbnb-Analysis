@@ -163,7 +163,7 @@ std_dev_ratings <- sd(listings_clean$review_scores_rating, na.rm = TRUE)
 cat("Number Reviews Standard Deviation: ", std_dev_reviews, " ||  Rating Standard Deviation: ", std_dev_ratings)
 
 library('stargazer')
-stargazer(listings_clean, type = "text")
+stargazer(as.data.frame(listings_clean), type = "text", title = "Seattle Airbnb Dataset Summary Stats", style = "default")
 ```
 
 ## Plots
