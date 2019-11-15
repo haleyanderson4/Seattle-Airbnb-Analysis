@@ -7,6 +7,7 @@ output:
   word_document: default
   html_notebook: default
 ---
+## FIND FINAL VERSION OF DATA ON BLACKBOARD
 
 ```{r setup, include=FALSE}
 library(knitr)
@@ -39,42 +40,175 @@ install.packages('ranger')
 install.packages('randomForestExplainer')
 install.packages('stargazer')
 ```
-
-## Data Cleaning
+#DATA CLEANING
 ```{r}
 library('tidyverse')
-listings <- read_csv("seattle/listings.csv")
+listings <- read_csv("final_project/listings_clean.csv")
+summary(listings)
+# Data cleaning, removing unecessary variables 
+listings <- listings %>% filter(city=="Seattle", state=="WA")
 
-# Remove listings not in Seattle, WA
-listings <- listings %>% filter(city=="Seattle",
-                                state=="WA")
+library('tokenizers')
+library('magrittr')
+
+# need to convert from factors to strings
+listings %<>% mutate(amenities = as.character(amenities))
+
+# from strings to tokens
+head(tokenize_words(listings$amenities))
+
+head(listings$amenities)
+
+# create a variable to hold the separated amenities
+listings %<>%
+  mutate(amenities_separated = NA) %>%
+  select(id,amenities, amenities_separated, everything() )
+
+
+# clean each of the rows of listings
+for (i in 1:nrow(listings)){
+  amenities <- unlist(str_split(listings$amenities[i], pattern = ","))
+  amenities_vec <- str_replace_all(amenities,pattern = "\"", replacement = "")
+  amenities_vec2 <- str_replace_all(amenities_vec,pattern = "\\(|\\)", replacement = "")
+  listings$amenities_separated[i] <- paste(amenities_vec2, collapse = ", ")
+}
+
+
+head(listings$amenities_separated)
+
+
+# create column of unique listings of amenities
+total_amenities = unique(unlist(str_split(listings$amenities_separated, pattern = ",") ))
+total_amenities = str_replace_all(total_amenities, pattern = "^ ", replacement="")
+total_amenities = str_replace_all(total_amenities, pattern = "\\(|\\)", replacement="")
+
+
+listings_wide = listings
+
+# loop through all amenities in DF and flag = 1 if amenities match the listed one  
+for (i in 1:length(total_amenities)){
+  listings_wide[,total_amenities[i]] <- 
+    str_count(listings_wide$amenities_separated, pattern = total_amenities[i])
+}
+listings_wide[,total_amenities]
+
+listings_wide %<>%
+  select(id, amenities, amenities_separated, total_amenities, everything())
+
+
+
+colnames(listings_wide)
+
+
+
+#install.packages("forcats")
+library('forcats')
+colnames(listings_wide)[4] <- "Cable_TV"
+colnames(listings_wide)[5] <- "Wireless_Internet"
+colnames(listings_wide)[6] <- "Air_Conditioning"
+colnames(listings_wide)[9] <- "Family_Kid_Friendly"
+colnames(listings_wide)[12] <- "Free_Parking_on_Premises"
+colnames(listings_wide)[13] <- "Buzzer_Wireless_Intercom"
+colnames(listings_wide)[14] <- "Smoke_Detector"
+colnames(listings_wide)[15] <- "CO_Detector"
+colnames(listings_wide)[16] <- "First_Aid_Kit"
+colnames(listings_wide)[17] <- "Safety_Card"
+colnames(listings_wide)[18] <- "Fire_Extinguisher"
+colnames(listings_wide)[20] <- "Pets_Allowed"
+colnames(listings_wide)[21] <- "Pets_live_on_this_property"
+colnames(listings_wide)[24] <- "Hot_Tub"
+colnames(listings_wide)[25] <- "Indoor_Fireplace"
+colnames(listings_wide)[28] <- "TwentyfourHour_Checkinin"
+colnames(listings_wide)[32] <- "Laptop_Friendly_Workspace"
+colnames(listings_wide)[33] <- "Suitable_for_Events"
+colnames(listings_wide)[34] <- "Elevator_in_Building"
+colnames(listings_wide)[35] <- "Lock_on_Bedroom_Door"
+colnames(listings_wide)[36] <- "Wheelchair_Accessible"
+colnames(listings_wide)[40] <- "Smoking_Allowed"
+colnames(listings_wide)[41] <- "Other_pets"
+colnames(listings_wide)[43] <- "Washer_Dryer"
+
+colnames(listings_wide)
+
+
+listings_wide$Pool <- as.factor(as.character(listings_wide$Pool))
+listings_wide$Cable_TV <- as.factor(as.character(listings_wide$Cable_TV))
+listings_wide$Air_Conditioning <- as.factor(as.character(listings_wide$Air_Conditioning))
+listings_wide$Heating <- as.factor(as.character(listings_wide$Heating))
+listings_wide$Family_Kid_Friendly <- as.factor(as.character(listings_wide$Family_Kid_Friendly))
+listings_wide$Washer <- as.factor(as.character(listings_wide$Washer))
+listings_wide$Dryer <- as.factor(as.character(listings_wide$Dryer))
+listings_wide$Buzzer_Wireless_Intercom <- as.factor(as.character(listings_wide$Buzzer_Wireless_Intercom))
+listings_wide$First_Aid_Kit <- as.factor(as.character(listings_wide$First_Aid_Kit))
+listings_wide$Pets_live_on_this_property <- as.factor(as.character(listings_wide$Pets_live_on_this_property))
+listings_wide$Hangers <- as.factor(as.character(listings_wide$Hangers))
+listings_wide$Laptop_Friendly_Workspace <- as.factor(as.character(listings_wide$Laptop_Friendly_Workspace))
+listings_wide$Suitable_for_Events <- as.factor(as.character(listings_wide$Suitable_for_Events))
+listings_wide$Lock_on_Bedroom_Door <- as.factor(as.character(listings_wide$Lock_on_Bedroom_Door))
+listings_wide$Wheelchair_Accessible <- as.factor(as.character(listings_wide$Wheelchair_Accessible))
+listings_wide$Smoking_Allowed <- as.factor(as.character(listings_wide$Smoking_Allowed))
+listings_wide$Other_pets <- as.factor(as.character(listings_wide$Other_pets))
+listings_wide$Doorman <- as.factor(as.character(listings_wide$Doorman))
+listings_wide$Gym <- as.factor(as.character(listings_wide$Gym))
+listings_wide$HairDryer <- as.factor(as.character(listings_wide$HairDryer))
+listings_wide$Pets_Allowed <- as.factor(as.character(listings_wide$Pets_Allowed))
+listings_wide$Dogs <- as.factor(as.character(listings_wide$Dogs))
+listings_wide$Cats <- as.factor(as.character(listings_wide$Cats))
+listings_wide$TwentyfourHour_Checkinin <- as.factor(as.character(listings_wide$TwentyfourHour_Checkinin))
+listings_wide$Breakfast <- as.factor(as.character(listings_wide$Breakfast))
+listings_wide$Fire_Extinguisher <- as.factor(as.character(listings_wide$Fire_Extinguisher))
+listings_wide$Safety_Card <- as.factor(as.character(listings_wide$Safety_Card))
+listings_wide$CO_Detector <- as.factor(as.character(listings_wide$CO_Detector))
+listings_wide$Smoke_Detector <- as.factor(as.character(listings_wide$Smoke_Detector))
+listings_wide$Free_Parking_on_Premises <- as.factor(as.character(listings_wide$Free_Parking_on_Premises))
+listings_wide$Iron <- as.factor(as.character(listings_wide$Iron))
+listings_wide$Elevator_in_Building <- as.factor(as.character(listings_wide$Elevator_in_Building))
+listings_wide$Indoor_Fireplace <- as.factor(as.character(listings_wide$Indoor_Fireplace))
+listings_wide$Essentials <- as.factor(as.character(listings_wide$Essentials))
+listings_wide$Shampoo <- as.factor(as.character(listings_wide$Shampoo))
+listings_wide$Washer_Dryer <- as.factor(as.character(listings_wide$Washer_Dryer))
+listings_wide$Kitchen <- as.factor(as.character(listings_wide$Kitchen))
+listings_wide$Wireless_Internet <- as.factor(as.character(listings_wide$Wireless_Internet))
+listings_wide$require_guest_phone_verification <- as.factor(as.character(listings_wide$require_guest_phone_verification))
+listings_wide$requires_license <- as.factor(as.character(listings_wide$requires_license))
+listings_wide$require_guest_profile_picture <- as.factor(as.character(listings_wide$require_guest_profile_picture))
+listings_wide$host_is_superhost <- as.factor(as.character(listings_wide$host_is_superhost))
+listings_wide$property_type <- as.factor(as.character(listings_wide$property_type))
+listings_wide$instant_bookable <- as.factor(as.character(listings_wide$instant_bookable))
+listings_wide$host_has_profile_pic <- as.factor(as.character(listings_wide$host_has_profile_pic))
+listings_wide$host_identity_verified <- as.factor(as.character(listings_wide$host_identity_verified))
+listings_wide$room_type <- as.factor(as.character(listings_wide$room_type))
+listings_wide$id <- as.factor(as.character(listings_wide$id))
+listings_wide$experiences_offered <- as.factor(as.character(listings_wide$experiences_offered))
+listings_wide$host_response_rate <- as.numeric(as.character(listings_wide$host_response_rate))
+listings_wide$host_acceptance_rate <- as.numeric(as.character(listings_wide$host_acceptance_rate))
+listings_wide$host_neighbourhood <- as.factor(as.character(listings_wide$host_neighbourhood))
+listings_wide$neighbourhood <- as.factor(as.character(listings_wide$neighbourhood))
+listings_wide$neighbourhood_cleansed <- as.factor(as.character(listings_wide$neighbourhood_cleansed))
+listings_wide$zipcode <- as.factor(as.character(listings_wide$zipcode))
+listings_wide$state <- as.factor(as.character(listings_wide$state))
+listings_wide$bed_type <- as.factor(as.character(listings_wide$bed_type))
+listings_wide$cancellation_policy <- as.factor(as.character(listings_wide$cancellation_policy))
+listings_wide$first_review <- as.Date(as.character(listings_wide$first_review,"%Y-%m-%d"))
+listings_wide$last_review <- as.Date(as.character(listings_wide$last_review,"%Y-%m-%d"))
+listings_wide$host_since <- as.Date(as.character(listings_wide$host_since,"%Y-%m-%d"))
+glimpse(listings_wide)
+
+
+listings_clean <- listings_wide[,-c(1:5,38,44:47,56,59,60,62:63,81:82,99,105,107)]
 
 # Remove listings that have never been stayed at
-listings <- listings %>% drop_na(host_acceptance_rate)
-listings <- listings %>% filter(host_acceptance_rate!="N/A")
-
-# Data cleaning, removing unecessary variables 
-listings_clean <- listings[,c(1,5,9,17,19,20,23,24,
-                              25,26,29,30,31,32,33,
-                              34,35,36,37,39,40,41,
-                              49,50,51,52:85,87:92)]
+listings_clean <- listings_clean %>% drop_na(host_acceptance_rate)
+listings_clean <- listings_clean %>% filter(host_acceptance_rate!="N/A")
 
 # Remove listing that has an junk 7 digit zipcode
-listings_clean <- listings_clean %>% filter(id != "9448215")  
+listings_clean <- listings_clean %>% filter(id != "9448215") 
 
-listings_clean <- listings_clean[,c(1:2,4:32,35:40,46,48:57,60:61,63:65)]
+```
 
-# Percentage of NA values
-mean(is.na(listings_clean))
 
-listings_clean <- listings_clean %>% mutate(
-  price = as.numeric(gsub("\\$", "", as.character(listings_clean$price))),
-  security_deposit = as.numeric(gsub("\\$", "", as.character(listings_clean$security_deposit))),
-  cleaning_fee = as.numeric(gsub("\\$", "", as.character(listings_clean$cleaning_fee))),
-  extra_people = as.numeric(gsub("\\$", "", as.character(listings_clean$extra_people))),
-)
-
-# Add factors
+## ADD FACTORS
+```{r}
 library('forcats')
 df1 <- data.frame(listings_clean$neighbourhood_cleansed)
 neighbourhood_cleansed_levels <- unique(df1)
