@@ -7,7 +7,6 @@ output:
   word_document: default
   html_notebook: default
 ---
-## FIND FINAL VERSION OF DATA ON BLACKBOARD
 
 ```{r setup, include=FALSE}
 library(knitr)
@@ -40,16 +39,17 @@ install.packages('ranger')
 install.packages('randomForestExplainer')
 install.packages('stargazer')
 ```
-#DATA CLEANING
+## DATA CLEANING
 ```{r}
 library('tidyverse')
-listings <- read_csv("final_project/listings_clean.csv")
-summary(listings)
-# Data cleaning, removing unecessary variables 
-listings <- listings %>% filter(city=="Seattle", state=="WA")
-
 library('tokenizers')
 library('magrittr')
+
+listings <- read_csv("final_project/listings_clean.csv")
+summary(listings)
+
+# Data cleaning, removing unecessary variables 
+listings <- listings %>% filter(city=="Seattle", state=="WA")
 
 # need to convert from factors to strings
 listings %<>% mutate(amenities = as.character(amenities))
@@ -73,9 +73,7 @@ for (i in 1:nrow(listings)){
   listings$amenities_separated[i] <- paste(amenities_vec2, collapse = ", ")
 }
 
-
 head(listings$amenities_separated)
-
 
 # create column of unique listings of amenities
 total_amenities = unique(unlist(str_split(listings$amenities_separated, pattern = ",") ))
@@ -83,7 +81,7 @@ total_amenities = str_replace_all(total_amenities, pattern = "^ ", replacement="
 total_amenities = str_replace_all(total_amenities, pattern = "\\(|\\)", replacement="")
 
 
-listings_wide = listings
+listings_wide <- listings
 
 # loop through all amenities in DF and flag = 1 if amenities match the listed one  
 for (i in 1:length(total_amenities)){
@@ -94,7 +92,6 @@ listings_wide[,total_amenities]
 
 listings_wide %<>%
   select(id, amenities, amenities_separated, total_amenities, everything())
-
 
 colnames(listings_wide)[4] <- "Cable_TV"
 colnames(listings_wide)[5] <- "Wireless_Internet"
@@ -122,7 +119,6 @@ colnames(listings_wide)[41] <- "Other_pets"
 colnames(listings_wide)[43] <- "Washer_Dryer"
 
 colnames(listings_wide)
-
 
 listings_wide$Pool <- as.factor(as.character(listings_wide$Pool))
 listings_wide$Cable_TV <- as.factor(as.character(listings_wide$Cable_TV))
@@ -197,8 +193,13 @@ listings_clean <- listings_clean %>% filter(host_acceptance_rate!="N/A")
 # Remove listing that has an junk 7 digit zipcode
 listings_clean <- listings_clean %>% filter(id != "9448215") 
 
+listings_clean <- listings_clean %>% mutate(
+  price = as.numeric(gsub("\\$", "", as.character(listings_clean$price))),
+  security_deposit = as.numeric(gsub("\\$", "", as.character(listings_clean$security_deposit))),
+  cleaning_fee = as.numeric(gsub("\\$", "", as.character(listings_clean$cleaning_fee))),
+  extra_people = as.numeric(gsub("\\$", "", as.character(listings_clean$extra_people))),
+)
 ```
-
 
 ## ADD FACTORS
 ```{r}
