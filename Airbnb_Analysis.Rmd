@@ -96,13 +96,6 @@ listings_wide %<>%
   select(id, amenities, amenities_separated, total_amenities, everything())
 
 
-
-colnames(listings_wide)
-
-
-
-#install.packages("forcats")
-library('forcats')
 colnames(listings_wide)[4] <- "Cable_TV"
 colnames(listings_wide)[5] <- "Wireless_Internet"
 colnames(listings_wide)[6] <- "Air_Conditioning"
