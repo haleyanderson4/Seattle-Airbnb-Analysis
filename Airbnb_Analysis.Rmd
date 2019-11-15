@@ -28,24 +28,25 @@ opts_chunk$set(message = FALSE,
                fig.align='center')
 
 # install packages
-install.packages('wordcloud2')
-install.packages('slam')
-install.packages("tm")  # for text mining
-install.packages("SnowballC") # for text stemming
-install.packages("wordcloud") # word-cloud generator 
-install.packages("RColorBrewer") # color palettes
-install.packages('randomForest')
-install.packages('ranger')
-install.packages('randomForestExplainer')
-install.packages('stargazer')
+#install.packages('wordcloud2')
+#install.packages('slam')
+#install.packages("tm")  # for text mining
+#install.packages("SnowballC") # for text stemming
+#install.packages("wordcloud") # word-cloud generator 
+#install.packages("RColorBrewer") # color palettes
+#install.packages('randomForest')
+#install.packages('ranger')
+#install.packages('randomForestExplainer')
+#install.packages('stargazer')
+#install.packages('tokenizer')
 ```
-## DATA CLEANING
+## Data Cleaning
 ```{r}
 library('tidyverse')
 library('tokenizers')
 library('magrittr')
 
-listings <- read_csv("final_project/listings_clean.csv")
+listings <- read_csv("listings_clean.csv")
 summary(listings)
 
 # Data cleaning, removing unecessary variables 
@@ -81,7 +82,7 @@ total_amenities = str_replace_all(total_amenities, pattern = "^ ", replacement="
 total_amenities = str_replace_all(total_amenities, pattern = "\\(|\\)", replacement="")
 
 
-listings_wide <- listings
+listings_wide = listings
 
 # loop through all amenities in DF and flag = 1 if amenities match the listed one  
 for (i in 1:length(total_amenities)){
@@ -190,9 +191,6 @@ listings_clean <- listings_wide[,-c(1:5,38,44:47,56,59,60,62:63,81:82,99,105,107
 listings_clean <- listings_clean %>% drop_na(host_acceptance_rate)
 listings_clean <- listings_clean %>% filter(host_acceptance_rate!="N/A")
 
-# Remove listing that has an junk 7 digit zipcode
-listings_clean <- listings_clean %>% filter(id != "9448215") 
-
 listings_clean <- listings_clean %>% mutate(
   price = as.numeric(gsub("\\$", "", as.character(listings_clean$price))),
   security_deposit = as.numeric(gsub("\\$", "", as.character(listings_clean$security_deposit))),
@@ -201,57 +199,18 @@ listings_clean <- listings_clean %>% mutate(
 )
 ```
 
-## ADD FACTORS
-```{r}
-library('forcats')
-df1 <- data.frame(listings_clean$neighbourhood_cleansed)
-neighbourhood_cleansed_levels <- unique(df1)
-neighbourhood_cleansed_levels <- neighbourhood_cleansed_levels %>% select()
-neighbourhood_cleansed_levels <- factor(listings_clean$neighbourhood_cleansed, levels = neighbourhood_cleansed_levels)
-
-df2 <- data.frame(listings_clean$neighbourhood)
-neighbourhood_levels <- unique(df2)
-neighbourhood_levels <- factor(listings_clean$neighbourhood, levels = neighbourhood_levels)
-
-df3 <- data.frame(listings_clean$zipcode)
-zipcode_levels <- unique(df3)
-zipcode_factors <- factor(listings_clean$zipcode, levels = zipcode_levels)
-
-df4 <- data.frame(listings_clean$property_type)
-property_type_levels <- unique(df4)
-property_type_levels
-property_type_factor <- factor(listings_clean$property_type, levels = property_type_levels)
-
-df5 <- data.frame(listings_clean$room_type)
-room_type_levels <- unique(df5)
-room_type_factors <- factor(listings_clean$room_type, levels = room_type_levels)
-
-df6 <- data.frame(listings_clean$bed_type)
-bed_type_levels <- unique(df6)
-bed_type_factors <- factor(listings_clean$bed_type, levels = bed_type_levels)
-
-# Add factors to data frame
-listings_clean <- listings_clean %>% mutate(
-  neighbourhood_cleansed_factor = factor(listings_clean$neighbourhood_cleansed, levels = neighbourhood_cleansed_levels),
-  zipcode_factor <- factor(listings_clean$neighbourhood, levels = neighbourhood_levels),
-  property_type_factor <- factor(listings_clean$property_type, levels = property_type_levels),
-  room_type_factor <- factor(listings_clean$room_type, levels = room_type_levels),
-  bed_type_factor <- factor(listings_clean$bed_type, levels = bed_type_levels)
-)
-```
-
 ## Summary Statistics
 ```{r}
 # Predicting the nightly price of an Airbnb listing
 
 num_listing <- nrow(listings_clean)
-cat("Number of Listings in Seattle: ", num_listing)
+cat("Number of Listings in Seattle: ", num_listing, "\n")
 
 house_percent <- (nrow(listings_clean %>% filter(property_type=="House")) /  num_listing)
-cat("Percentage of Listings that are a House: ", house_percent)
+cat("Percentage of Listings that are a House: ", house_percent, "\n")
 
 apartment_percent <- (nrow(listings_clean %>% filter(property_type=="Apartment")) /  num_listing)
-cat("Percentage of Listings that are an Apartment: ", apartment_percent)
+cat("Percentage of Listings that are an Apartment: ", apartment_percent, "\n")
 
 print(house_percent + apartment_percent)
 
@@ -261,34 +220,34 @@ other_property_listings <- listings_clean %>% filter(property_type!="House",
 head(other_property_listings$property_type)
 
 full_house_percent <- (nrow(listings_clean %>% filter(room_type=="Entire home/apt")) / num_listing)
-cat("Percentage of Listings that are the Full House / Apartment: ", full_house_percent)
+cat("Percentage of Listings that are the Full House / Apartment: ", full_house_percent, "\n")
 
 priv_room_percent <- (nrow(listings_clean %>% filter(room_type=="Private room")) / num_listing)
-cat("Percentage of Listings that are a Private Room: ", priv_room_percent)
+cat("Percentage of Listings that are a Private Room: ", priv_room_percent, "\n")
 
 share_room_percent <- (nrow(listings_clean %>% filter(room_type=="Shared room")) / num_listing)
-cat("Percentage of Listings that are a Shared Room: ", share_room_percent)
+cat("Percentage of Listings that are a Shared Room: ", share_room_percent, "\n")
 
 print(full_house_percent + priv_room_percent + share_room_percent)
 
 avg_nightly_price <- mean(listings_clean$price, na.rm = TRUE)
 median_nightly_price <- median(listings_clean$price, na.rm = TRUE)
-cat("Average Nightly Price: ", avg_nightly_price, " ||  Median Nightly Price: ", median_nightly_price)
+cat("Average Nightly Price: ", avg_nightly_price, " ||  Median Nightly Price: ", median_nightly_price, "\n")
 
 std_dev_nightly_price <- sd(listings_clean$price, na.rm = TRUE)
-cat("Standard Deviation: ", std_dev_nightly_price)
+cat("Standard Deviation: ", std_dev_nightly_price, "\n")
 
 max_nightly_price <- max(listings_clean$price, na.rm = TRUE)
 min_nightly_price <- min(listings_clean$price, na.rm = TRUE)
-cat("Minimum Nightly Price: ", min_nightly_price, " ||  Maximum Nightly Price: ", max_nightly_price)
+cat("Minimum Nightly Price: ", min_nightly_price, " ||  Maximum Nightly Price: ", max_nightly_price, "\n")
 
 avg_num_reviews <- mean(listings_clean$number_of_reviews, na.rm = TRUE)
 avg_rating <- mean(listings_clean$review_scores_rating, na.rm = TRUE)
-cat("Average number of Reviews: ", avg_num_reviews, " ||  Average Rating out of 100: ", avg_rating)
+cat("Average number of Reviews: ", avg_num_reviews, " ||  Average Rating out of 100: ", avg_rating, "\n")
 
 std_dev_reviews <- sd(listings_clean$number_of_reviews, na.rm = TRUE)
 std_dev_ratings <- sd(listings_clean$review_scores_rating, na.rm = TRUE)
-cat("Number Reviews Standard Deviation: ", std_dev_reviews, " ||  Rating Standard Deviation: ", std_dev_ratings)
+cat("Number Reviews Standard Deviation: ", std_dev_reviews, " ||  Rating Standard Deviation: ", std_dev_ratings, "\n")
 
 library('stargazer')
 stargazer(as.data.frame(listings_clean), type = "text", title = "Seattle Airbnb Dataset Summary Stats", style = "default")
@@ -317,12 +276,9 @@ boxplot(price ~ property_type + room_type,
         data = listings_clean %>% filter(price < 600 & (property_type=="House" | property_type=="Apartment")), 
         notch=TRUE,
         col=(c("gold","blue")),
-        names=c("A & EH", "H & EH", "A & PR",
-                "H & PR", "A & SR", "H & SR"),
-        at = c(1,2, 4,5, 7,8),
         main="Nightly Price of Airbnbs in Seattle", 
         ylab="Nightly Price",
-        xlab="A - Apartment, H - House, EH - Entire House, PR - Private Room, SR - Shared Room"
+        xlab="Property Type"
         )
 
 # Proportion of Room Type In Each Zipcode
