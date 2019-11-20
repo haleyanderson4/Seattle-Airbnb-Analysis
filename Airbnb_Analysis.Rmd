@@ -407,3 +407,366 @@ explain_forest(rt_fit,
                interactions = TRUE, 
                data = listings_train)
 ```
+
+## Model 3: Sentiment Analysis
+```{r}
+#inspired by: https://www.datacamp.com/community/tutorials/sentiment-analysis-R
+library(dplyr) 
+library(ggplot2) 
+library(gridExtra) 
+library(tidytext) 
+library(wordcloud2) 
+library(widyr) 
+
+library(ggplot2) 
+library(ggrepel) 
+library(gridExtra) 
+library(knitr) 
+library(kableExtra) 
+library(formattable) 
+library(circlize) 
+library(memery) 
+library(magick) 
+library(yarrr)  
+library(radarchart) 
+library(igraph) 
+library(ggraph) 
+
+sentiment_orig <- read.csv("listings_sentiment.csv", stringsAsFactors = FALSE)
+names(sentiment_orig)
+head(sentiment_orig)
+
+sentiment <- sentiment_orig %>% select(id, summary, price)
+head(sentiment)
+
+glimpse(sentiment[139,])
+dim(sentiment)
+str(sentiment[139, ]$summary, nchar.max = 300)
+
+fix.contractions <- function(doc) {
+  doc <- gsub("won't", "will not", doc)
+  doc <- gsub("can't", "can not", doc)
+  doc <- gsub("n't", " not", doc)
+  doc <- gsub("'ll", " will", doc)
+  doc <- gsub("'re", " are", doc)
+  doc <- gsub("'ve", " have", doc)
+  doc <- gsub("'m", " am", doc)
+  doc <- gsub("'d", " would", doc)
+  doc <- gsub("'s", "", doc)
+  return(doc)
+}
+sentiment$summary <- sapply(sentiment$summary, fix.contractions)
+head(sentiment)
+
+removeSpecialChars <- function(x) gsub("[^a-zA-Z0-9 ]", " ", x)
+sentiment$summary <- sapply(sentiment$summary, removeSpecialChars)
+sentiment$price <- as.numeric(gsub("\\$", "", sentiment$price))
+
+sentiment$summary <- sapply(sentiment$summary, tolower)
+
+str(sentiment[139, ]$summary, nchar.max = 500)
+head(sentiment)
+
+summary(sentiment)
+
+sentiment <- sentiment %>% mutate(pricePoint = 
+           ifelse(sentiment$price %in% 0.0:100.0, "$0-$100", 
+           ifelse(sentiment$price %in% 101.0:200.0, "$101-$200", 
+           ifelse(sentiment$price %in% 201.0:300.0, "$201-$300", 
+           ifelse(sentiment$price %in% 301.0:400.0, "$301-$400", 
+           ifelse(sentiment$price %in% 401.0:500.0, "$401-$500",
+           ifelse(sentiment$price %in% 501.0:1000.0, "$500-$1000",
+                  "NA")))))))
+head(sentiment)
+
+my_colors <- c("#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#D55E00")
+
+theme_summary <- function() 
+{
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_blank(), 
+        axis.ticks = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = "none")
+}
+
+sentiment %>% filter(pricePoint != "NA") %>% group_by(pricePoint) %>% summarise(numListings = n()) %>%
+  ggplot() + geom_bar(aes(x = pricePoint, y = num_listing), stat = "identity")  +
+  theme(plot.title = element_text(hjust = 0.5), legend.title = element_blank(), 
+  panel.grid.minor = element_blank()) +  ggtitle("Released Songs") +
+  labs(x = NULL, y = "Song Count")
+
+sentiment_words_filtered <- sentiment %>%
+  unnest_tokens(word, summary) %>%
+  anti_join(stop_words) %>%
+  distinct() %>%
+  filter(nchar(word) > 3)
+
+class(sentiment_words_filtered)
+dim(sentiment_words_filtered)
+
+full_word_count <- sentiment %>%
+  unnest_tokens(word, summary) %>%
+  group_by(id,pricePoint) %>%
+  summarise(num_words = n()) %>%
+  arrange(desc(num_words)) 
+
+install.packages("kableExtra")
+library(kableExtra)
+library(formattable)
+full_word_count[1:10,] %>%
+  ungroup(num_words, id) %>%
+  mutate(num_words = color_bar("lightblue")(num_words)) %>%
+  mutate(id = color_tile("lightpink","lightpink")(id)) %>%
+  kable("html", escape = FALSE, align = "c", caption = "Summaries With Highest Word Count") %>%
+  kable_styling(bootstrap_options = 
+                  c("striped", "condensed", "bordered"), 
+                  full_width = FALSE)
+
+sentiment_words_filtered %>%
+  count(word, sort = TRUE) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot() +
+    geom_col(aes(word, n), fill = my_colors[4]) +
+    theme(legend.position = "none", 
+          plot.title = element_text(hjust = 0.5),
+          panel.grid.major = element_blank()) +
+    xlab("") + 
+    ylab("id Count") +
+    ggtitle("Most Frequently Used Words in Airbnb Summaries") +
+    coord_flip()
+
+sentiment_words_counts <- sentiment_words_filtered %>%
+  count(word, sort = TRUE) 
+
+#word maps of most frequent words
+wordcloud2(sentiment_words_counts[1:300, ], size = .5)
+letterCloud(sentiment_words_counts[1:300, ], word = "SEATTLE", size = 2)
+
+#Words by price point
+timeless_words <- sentiment_words_filtered %>% 
+  filter(pricePoint != 'NA') %>%
+  group_by(pricePoint) %>%
+  count(word, pricePoint, sort = TRUE) %>%
+  slice(seq_len(8)) %>%
+  ungroup() %>%
+  arrange(pricePoint,n) %>%
+  mutate(row = row_number()) 
+
+timeless_words %>%
+  ggplot(aes(row, n, fill = pricePoint)) +
+    geom_col(show.legend = NULL) +
+    labs(x = NULL, y = "Listing Count") +
+    ggtitle("Words by Price Point") + 
+    theme_summary() +  
+    facet_wrap(~pricePoint, scales = "free", ncol = 5) +
+    scale_x_continuous(  
+      breaks = timeless_words$row, 
+      labels = timeless_words$word) +
+    coord_flip()
+
+#word length distribution
+sentiment_word_lengths <- sentiment %>%
+  unnest_tokens(word, summary) %>%
+  group_by(id,pricePoint) %>%
+  distinct() %>%
+  mutate(word_length = nchar(word)) 
+
+sentiment_word_lengths %>%
+  count(word_length, sort = TRUE) %>%
+  ggplot(aes(word_length), 
+         binwidth = 10) + 
+    geom_histogram(aes(fill = ..count..),
+                   breaks = seq(1,25, by = 2), 
+                   show.legend = FALSE) + 
+    xlab("Word Length") + 
+    ylab("Word Count") +
+    ggtitle("Word Length Distribution") +
+    theme(plot.title = element_text(hjust = 0.5),
+          panel.grid.minor = element_blank())
+
+#lexical diversity
+lex_diversity_per_price <- sentiment %>%
+  filter(pricePoint != "NA") %>%
+  unnest_tokens(word, summary) %>%
+  group_by(id,price) %>%
+  summarise(lex_diversity = n_distinct(word)) %>%
+  arrange(desc(lex_diversity)) 
+
+diversity_plot <- lex_diversity_per_price %>%
+  ggplot(aes(price, lex_diversity)) +
+    geom_point(color = my_colors[3],
+               alpha = .4, 
+               size = 4, 
+               position = "jitter") + 
+    stat_smooth(color = "black", se = FALSE, method = "lm") +
+    geom_smooth(aes(x = price, y = lex_diversity), se = FALSE,
+                color = "blue", lwd = 2) +
+    ggtitle("Lexical Diversity") +
+    xlab("") + 
+    ylab("") +
+    scale_color_manual(values = my_colors) +
+    theme_classic() + 
+    theme_summary()
+
+diversity_plot #doesn't really show us much, summary word diversity has a very slight decrease the higher the price
+
+#TF-IDF (term frequency-inverse document frequency)
+#only considers words that are less frequent and mean more in the analysis 
+popular_tfidf_words <- sentiment %>%
+  unnest_tokens(word, summary) %>%
+  distinct() %>%
+  filter(nchar(word) > 3) %>%
+  count(pricePoint, word, sort = TRUE) %>%
+  ungroup() %>%
+  bind_tf_idf(word, pricePoint, n)
+
+head(popular_tfidf_words)
+
+top_popular_tfidf_words <- popular_tfidf_words %>%
+  arrange(desc(tf_idf)) %>%
+  mutate(word = factor(word, levels = rev(unique(word)))) %>%
+  group_by(pricePoint) %>% 
+  slice(seq_len(8)) %>%
+  ungroup() %>%
+  arrange(pricePoint, tf_idf) %>%
+  mutate(row = row_number())
+
+top_popular_tfidf_words %>%
+  ggplot(aes(x = row, tf_idf, 
+             fill = pricePoint)) +
+    geom_col(show.legend = NULL) +
+    labs(x = NULL, y = "TF-IDF") + 
+    ggtitle("Important Words using TF-IDF by Price Point") +
+    theme_summary() +  
+    facet_wrap(~pricePoint, ncol = 3, scales = "free") +
+    scale_x_continuous(  
+      breaks = top_popular_tfidf_words$row, 
+      labels = top_popular_tfidf_words$word) +
+    coord_flip()
+
+#tidy text format 
+sentiment_tidy <- sentiment %>%
+  unnest_tokens(word, summary) %>% 
+  filter(!nchar(word) < 3) %>% 
+  anti_join(stop_words) 
+
+glimpse(sentiment_tidy)
+
+#lexical diversity per price point
+word_summary <- sentiment_tidy %>%
+  mutate(pricePoint = ifelse(is.na(pricePoint),"NONE", pricePoint)) %>%
+  group_by(pricePoint, id) %>%
+  mutate(word_count = n_distinct(word)) %>%
+  select(id, pricePoint, word_count) %>%
+  distinct() %>% 
+  ungroup()
+
+pirateplot(formula =  word_count ~ pricePoint, 
+   data = word_summary, 
+   xlab = NULL, ylab = "Summary Distinct Word Count", 
+   main = "Lexical Diversity Per Price Point", 
+   pal = "google", 
+   point.o = .2, 
+   avg.line.o = 1, 
+   theme = 0, 
+   point.pch = 16, 
+   point.cex = 1.5, 
+   jitter.val = .1, 
+   cex.lab = .9, cex.names = .7) 
+
+
+
+install.packages("tidyr",dependencies = TRUE, repos = "http://cran.us.r-project.org")
+library(dplyr) 
+library(tidytext) 
+library(tidyr) 
+library(widyr) 
+library(formattable)
+library(kableExtra)
+library(knitr)
+
+my_kable_styling <- function(dat, caption) {
+  kable(dat, "html", escape = FALSE, caption = caption) %>%
+  kable_styling(bootstrap_options = c("striped", "condensed", "bordered"),
+                full_width = FALSE)
+}
+
+#sentiment lexicons
+new_sentiments <- get_sentiments("afinn")
+names(new_sentiments)[names(new_sentiments) == 'value'] <- 'score'
+new_sentiments <- new_sentiments %>% mutate(lexicon = "afinn", sentiment = ifelse(score >= 0, "positive", "negative"),
+                                                     words_in_lexicon = n_distinct((word)))
+
+new_sentiments %>% 
+     group_by(lexicon, sentiment, words_in_lexicon) %>% 
+     summarise(distinct_words = n_distinct(word)) %>% 
+     ungroup() %>% 
+     spread(sentiment, distinct_words) %>% 
+     mutate(lexicon = color_tile("lightblue", "lightblue")(lexicon), 
+            words_in_lexicon = color_bar("lightpink")(words_in_lexicon)) %>% 
+     my_kable_styling(caption = "Word Counts per Lexicon")
+  
+new_sentiments %>%
+  group_by(lexicon, sentiment, words_in_lexicon) %>%
+  summarise(distinct_words = n_distinct(word)) %>%
+  ungroup() %>%
+  spread(sentiment, distinct_words) %>%
+  mutate(lexicon = color_tile("lightblue", "lightblue")(lexicon),
+         words_in_lexicon = color_bar("lightpink")(words_in_lexicon)) %>%
+  my_kable_styling(caption = "Word Counts Per Lexicon")
+
+sentiment_tidy %>%
+  mutate(words_in_summary = n_distinct(word)) %>%
+  inner_join(new_sentiments) %>%
+  group_by(lexicon, words_in_summary, words_in_lexicon) %>%
+  summarise(lex_match_words = n_distinct(word)) %>%
+  ungroup() %>%
+  mutate(total_match_words = sum(lex_match_words), #Not used but good to have
+         match_ratio = lex_match_words / words_in_summary) %>%
+  select(lexicon, lex_match_words,  words_in_summary, match_ratio) %>%
+  mutate(lex_match_words = color_bar("lightpink")(lex_match_words),
+         lexicon = color_tile("lightgreen", "lightgreen")(lexicon)) %>%
+  my_kable_styling(caption = "Words Found In Lexicons")
+
+new_sentiments %>%
+  filter(word %in% c("dark", "controversy", "gangster",
+                     "discouraged", "race")) %>%
+  arrange(word) %>% #sort
+  select(-score) %>% #remove this field
+  mutate(word = color_tile("lightblue", "lightblue")(word),
+         words_in_lexicon = color_bar("lightpink")(words_in_lexicon),
+         lexicon = color_tile("lightgreen", "lightgreen")(lexicon)) %>%
+  my_kable_styling(caption = "Specific Words")
+
+sentiment_bing <- sentiment_tidy %>%
+  inner_join(get_sentiments("bing"))
+
+sentiment_nrc <- sentiment_tidy %>%
+  inner_join(get_sentiments("nrc"))
+
+sentiment_nrc_sub <- sentiment_tidy %>%
+  inner_join(get_sentiments("nrc")) %>%
+  filter(!sentiment %in% c("positive", "negative"))
+
+library(ggplot2)
+nrc_plot <- sentiment_nrc %>%
+  group_by(sentiment) %>%
+  summarise(word_count = n()) %>%
+  ungroup() %>%
+  mutate(sentiment = reorder(sentiment, word_count)) %>%
+  #Use `fill = -word_count` to make the larger bars darker
+  ggplot(aes(sentiment, word_count, fill = -word_count)) +
+  geom_col() +
+  guides(fill = FALSE) + #Turn off the legend
+  theme_summary() +
+  labs(x = NULL, y = "Word Count") +
+  scale_y_continuous(limits = c(0, 15000)) + #Hard code the axis limit
+  ggtitle("Listings NRC Sentiment") +
+  coord_flip()
+
+nrc_plot
+```
