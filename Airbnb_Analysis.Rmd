@@ -770,3 +770,15 @@ nrc_plot <- sentiment_nrc %>%
 
 nrc_plot
 ```
+
+```{r}
+library(leaps)
+reg_all <- regsubsets(price ~ ., data = listings_train[,c(1:37,58)], method=c("forward"))
+regall_coef <- names(coef(reg_all, scale="adjr2",5))[-1] #get best variables without intercept
+
+print(paste("selected variables:",list(regall_coef)))
+dummy5 <- lm(price ~ listings_train$Kitchen + listings_train$Family_Kid_Friendly + 
+               listings_train$Pets_live_on_this_property + listings_train$Indoor_Fireplace + 
+               listings_train$Doorman, data = listings_train[,c(1:37,58)])
+summary(dummy5)
+```
