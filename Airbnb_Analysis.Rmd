@@ -39,6 +39,19 @@ opts_chunk$set(message = FALSE,
 #install.packages('randomForestExplainer')
 #install.packages('stargazer')
 #install.packages('tokenizer')
+#install.packages("tidyr",dependencies = TRUE, repos = "http://cran.us.r-project.org")
+#install.packages("kableExtra")
+#install.packages('tidytext')
+#install.packages('widyr')
+#install.packages('formattable')
+#install.packages('memery')
+#install.packages('magick') 
+#install.packages('yarrr') 
+#install.packages('radarchart') 
+#install.packages('igraph') 
+#install.packages('ggraph')
+#install.packages('leaps')
+#install.packages('textdata')
 ```
 ## Data Cleaning
 ```{r}
@@ -46,7 +59,7 @@ library('tidyverse')
 library('tokenizers')
 library('magrittr')
 
-listings <- read_csv("listings_clean.csv")
+listings <- read.csv("listings_clean.csv")
 summary(listings)
 
 # Data cleaning, removing unecessary variables 
@@ -197,6 +210,14 @@ listings_clean <- listings_clean %>% mutate(
   cleaning_fee = as.numeric(gsub("\\$", "", as.character(listings_clean$cleaning_fee))),
   extra_people = as.numeric(gsub("\\$", "", as.character(listings_clean$extra_people))),
 )
+
+
+# factor lump to top 20 neighborhoods in new variable
+listings_clean <- listings_clean %>% mutate(
+  neighborhoods_lumped = fct_lump(factor(listings_clean$neighbourhood_cleansed), 20)
+)
+
+unique(listings_clean$neighborhoods_lumped)
 ```
 
 ## Summary Statistics
@@ -257,12 +278,12 @@ stargazer(as.data.frame(listings_clean), type = "text", title = "Seattle Airbnb 
 ```{r}
 library(ggplot2)
 
-# scatter plot of accommodates by price 
-ggplot(listings_clean) + aes(x = accommodates , y = price, color = property_type) + geom_point() + 
+# scatter plot of accommodates by price and property type
+ggplot(listings_clean) + aes(x = accommodates , y = price, color = property_type, alpha = 0.2) + geom_point() + 
   theme( axis.text.y = element_blank()) + ylab("price, max = $1000")
  
 # room type and accommodates
-ggplot(listings_clean) + aes(x = room_type, y = accommodates) + geom_point()
+ggplot(listings_clean) + aes(x = room_type, y = accommodates, color = "pink", alpha = 0.2) + geom_point()
 
 # Correlation matrix
 cormat <- cor(listings_clean %>% select_if(is.numeric) %>% drop_na())
@@ -282,7 +303,7 @@ boxplot(price ~ property_type + room_type,
         )
 
 # Proportion of Room Type In Each Zipcode
- ggplot(listings_clean) + geom_histogram(aes(zipcode, fill = room_type), stat = "count",alpha = 0.85, position = 'fill') + 
+ ggplot(listings_clean) + geom_histogram(aes(zipcode, fill = room_type), stat = "count",alpha = 0.85, position = 'fill') + theme(axis.text.x = element_text(angle = 60, hjust = 1))
    theme_minimal(base_size=13) + xlab("") + ylab("")  + 
    ggtitle("The Proportion of Room Type in Each Area")
 ```
@@ -360,6 +381,8 @@ plot(lasso_mod)
 library('coefplot')
 coef(lasso_mod, s = "lambda.min")
 coef(lasso_mod, s = "lambda.1se")
+
+coefplot(lasso_mod, decreasing = FALSE) # order by magnitude
 ```
 
 ## Model 2: Random Forest
@@ -370,21 +393,26 @@ library('ranger')
 rf_mods <- list()
 oob_err <- NULL
 
-for(i in 1:15) {
-  #fit RF model and vary mtry everytime
+mtry <- ncol(listings_train) / 3
+
+for(i in 1:mtry) {
   rf_mod <- randomForest(price ~ host_listings_count + host_has_profile_pic + host_is_superhost + 
-                           neighbourhood_cleansed + property_type + room_type + minimum_nights +
+                           neighborhoods_lumped + property_type + room_type + minimum_nights +
                            accommodates + bathrooms + bedrooms + beds + square_feet + number_of_reviews + 
-                           review_scores_rating + cancellation_policy,
+                           review_scores_rating + cancellation_policy + extra_people + host_total_listings_count,
                          data = listings_train,
-                         mtry = i,
-                         ntree = 1000)
+                         mtry = mtry,
+                         ntree = 200,
+                         importance = TRUE,
+                         localImp = TRUE,
+                         na.action = na.roughfix
+                         )
   rf_mods[[i]] <- rf_mod
-  oob_err[i] <- rf_mod$err.rate[1000]
+  oob_err[i] <- rf_mod$err.rate[200]
 }
 
 results_DF <- data.frame(
-  mtry = 1:9,
+  mtry = 1:mtry,
   oob_err
 )
 
@@ -396,7 +424,7 @@ rt_fit <- randomForest(price ~ .,
                        data = listings_train,
                        na.action = na.omit,
                        mtry = mtry_optimal,
-                       ntree = 10000,
+                       ntree = 200,
                        importance = TRUE,
                        localImp = TRUE) 
 
@@ -408,7 +436,7 @@ explain_forest(rt_fit,
                data = listings_train)
 ```
 
-## Model 3: Sentiment Analysis
+## Model 3: Sentiment Analysis of Summary
 ```{r}
 #inspired by: https://www.datacamp.com/community/tutorials/sentiment-analysis-R
 library(dplyr) 
@@ -417,7 +445,6 @@ library(gridExtra)
 library(tidytext) 
 library(wordcloud2) 
 library(widyr) 
-
 library(ggplot2) 
 library(ggrepel) 
 library(gridExtra) 
@@ -433,6 +460,7 @@ library(igraph)
 library(ggraph) 
 
 sentiment_orig <- read.csv("listings_sentiment.csv", stringsAsFactors = FALSE)
+
 names(sentiment_orig)
 head(sentiment_orig)
 
@@ -461,12 +489,11 @@ head(sentiment)
 removeSpecialChars <- function(x) gsub("[^a-zA-Z0-9 ]", " ", x)
 sentiment$summary <- sapply(sentiment$summary, removeSpecialChars)
 sentiment$price <- as.numeric(gsub("\\$", "", sentiment$price))
-
 sentiment$summary <- sapply(sentiment$summary, tolower)
 
 str(sentiment[139, ]$summary, nchar.max = 500)
-head(sentiment)
 
+head(sentiment)
 summary(sentiment)
 
 sentiment <- sentiment %>% mutate(pricePoint = 
@@ -480,7 +507,6 @@ sentiment <- sentiment %>% mutate(pricePoint =
 head(sentiment)
 
 my_colors <- c("#E69F00", "#56B4E9", "#009E73", "#CC79A7", "#D55E00")
-
 theme_summary <- function() 
 {
   theme(plot.title = element_text(hjust = 0.5),
@@ -512,7 +538,6 @@ full_word_count <- sentiment %>%
   summarise(num_words = n()) %>%
   arrange(desc(num_words)) 
 
-install.packages("kableExtra")
 library(kableExtra)
 library(formattable)
 full_word_count[1:10,] %>%
@@ -538,7 +563,6 @@ sentiment_words_filtered %>%
     ylab("id Count") +
     ggtitle("Most Frequently Used Words in Airbnb Summaries") +
     coord_flip()
-
 sentiment_words_counts <- sentiment_words_filtered %>%
   count(word, sort = TRUE) 
 
@@ -554,7 +578,7 @@ timeless_words <- sentiment_words_filtered %>%
   slice(seq_len(8)) %>%
   ungroup() %>%
   arrange(pricePoint,n) %>%
-  mutate(row = row_number()) 
+  mutate(row = row_number())
 
 timeless_words %>%
   ggplot(aes(row, n, fill = pricePoint)) +
@@ -611,10 +635,9 @@ diversity_plot <- lex_diversity_per_price %>%
     scale_color_manual(values = my_colors) +
     theme_classic() + 
     theme_summary()
-
 diversity_plot #doesn't really show us much, summary word diversity has a very slight decrease the higher the price
-
 #TF-IDF (term frequency-inverse document frequency)
+
 #only considers words that are less frequent and mean more in the analysis 
 popular_tfidf_words <- sentiment %>%
   unnest_tokens(word, summary) %>%
@@ -653,7 +676,6 @@ sentiment_tidy <- sentiment %>%
   unnest_tokens(word, summary) %>% 
   filter(!nchar(word) < 3) %>% 
   anti_join(stop_words) 
-
 glimpse(sentiment_tidy)
 
 #lexical diversity per price point
@@ -678,9 +700,6 @@ pirateplot(formula =  word_count ~ pricePoint,
    jitter.val = .1, 
    cex.lab = .9, cex.names = .7) 
 
-
-
-install.packages("tidyr",dependencies = TRUE, repos = "http://cran.us.r-project.org")
 library(dplyr) 
 library(tidytext) 
 library(tidyr) 
@@ -695,6 +714,7 @@ my_kable_styling <- function(dat, caption) {
                 full_width = FALSE)
 }
 
+library('textdata')
 #sentiment lexicons
 new_sentiments <- get_sentiments("afinn")
 names(new_sentiments)[names(new_sentiments) == 'value'] <- 'score'
@@ -752,7 +772,6 @@ sentiment_nrc_sub <- sentiment_tidy %>%
   inner_join(get_sentiments("nrc")) %>%
   filter(!sentiment %in% c("positive", "negative"))
 
-library(ggplot2)
 nrc_plot <- sentiment_nrc %>%
   group_by(sentiment) %>%
   summarise(word_count = n()) %>%
@@ -767,15 +786,14 @@ nrc_plot <- sentiment_nrc %>%
   scale_y_continuous(limits = c(0, 15000)) + #Hard code the axis limit
   ggtitle("Listings NRC Sentiment") +
   coord_flip()
-
 nrc_plot
 ```
 
+## Model 4: Amenties that Affect Price
 ```{r}
 library(leaps)
 reg_all <- regsubsets(price ~ ., data = listings_train[,c(1:37,58)], method=c("forward"))
 regall_coef <- names(coef(reg_all, scale="adjr2",5))[-1] #get best variables without intercept
-
 print(paste("selected variables:",list(regall_coef)))
 dummy5 <- lm(price ~ listings_train$Kitchen + listings_train$Family_Kid_Friendly + 
                listings_train$Pets_live_on_this_property + listings_train$Indoor_Fireplace + 
