@@ -405,21 +405,29 @@ listings_test <- listings_clean %>% slice(-train_idx)
 library(glmnet)
 library(glmnetUtils)
 
-lasso_mod <- cv.glmnet(price ~ host_listings_count + host_has_profile_pic + host_is_superhost + 
+lasso_fit <- cv.glmnet(price ~ host_listings_count + host_has_profile_pic + host_is_superhost + 
                            neighbourhood_cleansed + property_type + room_type + minimum_nights +
                            accommodates + bathrooms + bedrooms + beds + square_feet + number_of_reviews + 
                            review_scores_rating + cancellation_policy,
                        data = listings_train,
                        alpha = 1,
                        nfolds = 10) 
-summary(lasso_mod)
-plot(lasso_mod)
+summary(lasso_fit)
+plot(lasso_fit)
 
 library('coefplot')
-coef(lasso_mod, s = "lambda.min")
-coef(lasso_mod, s = "lambda.1se")
+coef(lasso_fit, s = "lambda.min")
+coef(lasso_fit, s = "lambda.1se")
 
 coefplot(lasso_mod, decreasing = FALSE) # order by magnitude
+
+preds_test <- data.frame(preds_lasso = predict(lasso_fit, newdata = listings_test,
+                                               s = lasso_fit$lambda.min))
+preds_train <- data.frame(preds_lasso = predict(lasso_fit, newdata = listings_train,
+                                               s = lasso_fit$lambda.min))
+
+map2_dbl(preds_test, data.frame(listings_test$price), RMSE)
+map2_dbl(preds_train, data.frame(listings_train$price), RMSE)
 ```
 
 ## Model 2: Random Forest
