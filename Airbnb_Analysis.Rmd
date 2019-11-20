@@ -303,46 +303,9 @@ boxplot(price ~ property_type + room_type,
         )
 
 # Proportion of Room Type In Each Zipcode
- ggplot(listings_clean) + geom_histogram(aes(zipcode, fill = room_type), stat = "count",alpha = 0.85, position = 'fill') + theme(axis.text.x = element_text(angle = 60, hjust = 1))
-   theme_minimal(base_size=13) + xlab("") + ylab("")  + 
+ ggplot(listings_clean) + geom_histogram(aes(zipcode, fill = room_type), stat = "count",alpha = 0.85, position = 'fill') + theme(axis.text.x = element_text(angle = 60, hjust = 1)) + 
+   #theme_minimal(base_size=13) + xlab("") + ylab("")  + 
    ggtitle("The Proportion of Room Type in Each Area")
-```
-```{r}
-#Waffle Chart
-parts_kitchen <- c('Have Kitchen' = as.numeric(nrow(listings_clean[listings_clean$Kitchen == 1,])),
-                   'No Kitchen' = as.numeric(nrow(listings_clean)-nrow(listings_clean[listings_clean$Kitchen == 1,])))
-kitchen_waffle <- waffle(parts_kitchen, rows=15,size=0.5,
-                         colors=c("#889c6e", "#7784a6"),
-                         title="Listings with Kitchen")
-print(kitchen_waffle)
-
-parts_FamilyKids <- c('Family and Kids Friendly' = as.numeric(nrow(listings_clean[listings_clean$Family_Kid_Friendly == 1,])),
-                   'No So Friendly' = as.numeric(nrow(listings_clean)-nrow(listings_clean[listings_clean$Family_Kid_Friendly == 1,])))
-FamilyKids_waffle <- waffle(parts_FamilyKids, rows=15,size=0.5,
-                         colors=c("#d1974b", "#608cb3"),
-                         title="Listings - Family Kids Friendly")
-print(FamilyKids_waffle)
-
-parts_Pets <- c('Pets live on this property' = as.numeric(nrow(listings_clean[listings_clean$Pets_live_on_this_property == 1,])),
-                      'Pets do not live on this property' = as.numeric(nrow(listings_clean)-nrow(listings_clean[listings_clean$Pets_live_on_this_property == 1,])))
-Pets_waffle <- waffle(parts_Pets, rows=15,size=0.5,
-                            colors=c("#4d8a64", "#805a8a"),
-                            title="Pets live on this property",glyph_size=8)
-print(Pets_waffle)
-
-parts_Fireplace <- c('Have Indoor Fireplace' = as.numeric(nrow(listings_clean[listings_clean$Indoor_Fireplace == 1,])),
-                      'No Indoor Fireplace' = as.numeric(nrow(listings_clean)-nrow(listings_clean[listings_clean$Indoor_Fireplace == 1,])))
-Fireplace_waffle <- waffle(parts_Fireplace, rows=15,size=0.5,
-                            colors=c("#a36a5b", "#768499"),
-                            title="Listings with Indoor Fireplace")
-print(Fireplace_waffle)
-
-parts_Doorman <- c('Have Doorman' = as.numeric(nrow(listings_clean[listings_clean$Doorman == 1,])),
-                     'No Doorman' = as.numeric(nrow(listings_clean)-nrow(listings_clean[listings_clean$Doorman == 1,])))
-Doorman_waffle <- waffle(parts_Doorman, rows=15,size=0.5,
-                           colors=c("#edca3e", "#7e7d8a"),
-                           title="Listings with Doorman")
-print(Doorman_waffle)
 ```
 
 ## Plot: Word Cloud
@@ -405,29 +368,21 @@ listings_test <- listings_clean %>% slice(-train_idx)
 library(glmnet)
 library(glmnetUtils)
 
-lasso_fit <- cv.glmnet(price ~ host_listings_count + host_has_profile_pic + host_is_superhost + 
+lasso_mod <- cv.glmnet(price ~ host_listings_count + host_has_profile_pic + host_is_superhost + 
                            neighbourhood_cleansed + property_type + room_type + minimum_nights +
                            accommodates + bathrooms + bedrooms + beds + square_feet + number_of_reviews + 
                            review_scores_rating + cancellation_policy,
                        data = listings_train,
                        alpha = 1,
                        nfolds = 10) 
-summary(lasso_fit)
-plot(lasso_fit)
+summary(lasso_mod)
+plot(lasso_mod)
 
 library('coefplot')
-coef(lasso_fit, s = "lambda.min")
-coef(lasso_fit, s = "lambda.1se")
+coef(lasso_mod, s = "lambda.min")
+coef(lasso_mod, s = "lambda.1se")
 
 coefplot(lasso_mod, decreasing = FALSE) # order by magnitude
-
-preds_test <- data.frame(preds_lasso = predict(lasso_fit, newdata = listings_test,
-                                               s = lasso_fit$lambda.min))
-preds_train <- data.frame(preds_lasso = predict(lasso_fit, newdata = listings_train,
-                                               s = lasso_fit$lambda.min))
-
-map2_dbl(preds_test, data.frame(listings_test$price), RMSE)
-map2_dbl(preds_train, data.frame(listings_train$price), RMSE)
 ```
 
 ## Model 2: Random Forest
@@ -446,7 +401,7 @@ for(i in 1:mtry) {
                            accommodates + bathrooms + bedrooms + beds + square_feet + number_of_reviews + 
                            review_scores_rating + cancellation_policy + extra_people + host_total_listings_count,
                          data = listings_train,
-                         mtry = mtry,
+                         mtry = i,
                          ntree = 200,
                          importance = TRUE,
                          localImp = TRUE,
@@ -476,7 +431,27 @@ rt_fit <- randomForest(price ~ .,
 plot(rt_fit, ylim = c(0,1))
 
 library('randomForestExplainer')
-explain_forest(rt_fit,
+```
+
+```{r}
+library(caret)
+
+control <- trainControl(method='repeatedcv', 
+                        number=10, 
+                        repeats=3)
+tunegrid <- expand.grid(.mtry=c(1:29),.ntree=c(200,500))
+
+randFor <- train(price ~  host_listings_count + host_has_profile_pic + host_is_superhost + 
+                   neighborhoods_lumped + property_type + room_type + minimum_nights +
+                   accommodates + bathrooms + bedrooms + beds + square_feet + number_of_reviews + 
+                   review_scores_rating + cancellation_policy + extra_people + host_total_listings_count,
+                 data = listings_train,
+                 method='rf', 
+                 tuneGrid=tunegrid,
+                 trControl=control,
+                 na.action = na.roughfix)
+
+explain_forest(rf_mod,
                interactions = TRUE, 
                data = listings_train)
 ```
