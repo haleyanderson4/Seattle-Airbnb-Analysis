@@ -424,6 +424,30 @@ preds_train <- data.frame(preds_lasso = predict(lasso_fit, newdata = listings_tr
                                                s = lasso_fit$lambda.min))
 map2_dbl(preds_test, data.frame(listings_test$price), RMSE)
 map2_dbl(preds_train, data.frame(listings_train$price), RMSE)
+
+lasso_fit3 <- cv.glmnet(price ~ Air_Conditioning + Kitchen + Heating + 
+                           Family_Kid_Friendly + Washer + Dryer + Free_Parking_on_Premises +
+                           Buzzer_Wireless_Intercom + Smoke_Detector + CO_Detector + 
+                          First_Aid_Kit + Safety_Card + Fire_Extinguisher + Essentials + 
+                          Pets_Allowed + Pets_live_on_this_property + Dogs + Cats + Hot_Tub + 
+                          Indoor_Fireplace + Shampoo+ Breakfast + TwentyfourHour_Checkinin + 
+                          Hangers + HairDryer + Iron + Laptop_Friendly_Workspace +
+                          Suitable_for_Events + Elevator_in_Building + Lock_on_Bedroom_Door + 
+                          Wheelchair_Accessible + Gym + Pool + Smoking_Allowed + Other_pets +
+                          Doorman,
+                       data = listings_train,
+                       alpha = 1,
+                       nfolds = 10) 
+summary(lasso_fit3)
+plot(lasso_fit3)
+
+preds_test3 <- data.frame(preds_lasso = predict(lasso_fit3, newdata = listings_test,
+                                               s = lasso_fit3$lambda.min))
+preds_train3 <- data.frame(preds_lasso = predict(lasso_fit3, newdata = listings_train,
+                                               s = lasso_fit3$lambda.min))
+R2(preds_train3, data.frame(listings_train$price))
+map2_dbl(preds_test3, data.frame(listings_test$price), RMSE)
+map2_dbl(preds_train3, data.frame(listings_train$price), RMSE)
 ```
 
 ## Model 2: Random Forest
